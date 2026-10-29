@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한영외고 석식 신청 시스템 (HYFL Dinner Registration)</title>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font (Inter & Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hyfl: {
+                            navy: '#0C2340',
+                            blue: '#1B4D89',
+                            lightblue: '#EBF3FA',
+                            gold: '#C5A059',
+                            goldhover: '#B38F48',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* custom scrollbar & transitions */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .calendar-grid {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+
+    <!-- Header Area -->
+    <header class="bg-hyfl-navy text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- School Logo & Title -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-hyfl-navy font-bold text-xl border-2 border-hyfl-gold shadow-sm">
+                    <i class="fa-solid font-bold">HY</i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        한영외고 석식 신청 시스템
+                        <span class="bg-hyfl-gold/20 text-hyfl-gold text-xs px-2 py-0.5 rounded border border-hyfl-gold/40 hidden md:inline-block">HYFL Meal Hub</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-300">
+                        출처: 나이스 교육정보 개방 포털 (neis.go.kr) | <span id="data-status-tag" class="text-emerald-300">데이터 정상 연동됨</span>
+                    </p>
+                </div>
+            </div>
+
+
+            <!-- Admin Login Button & User Status -->
+            <div class="flex items-center space-x-3">
+                <div id="user-display" class="hidden text-xs text-right md:block">
+                    <span id="display-student-info" class="font-semibold text-amber-300"></span> 님
+                </div>
+                <button onclick="openAdminAuthModal()" class="bg-hyfl-gold hover:bg-hyfl-goldhover text-hyfl-navy font-semibold px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all duration-200 shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>관리자 페이지</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+
+        <!-- 1단계: 학교 Google 계정 로그인 -->
+        <section id="google-login-section" class="max-w-md mx-auto w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mt-4 transition-all">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-hyfl-lightblue text-hyfl-blue rounded-full mb-3">
+                    <i class="fa-brands fa-google text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-hyfl-navy">학교 계정으로 로그인</h2>
+                <p class="text-xs text-slate-500 mt-1">
+                    학번과 이름을 입력하기 전에 학교 Google 계정으로 본인 인증을 진행합니다.
+                </p>
+            </div>
+
+            <div id="google-login-button" class="flex justify-center min-h-[44px]"></div>
+
+            <div id="google-login-status" class="hidden mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-xs text-emerald-700">
+                <i class="fa-solid fa-circle-check mr-1"></i>
+                <span id="google-account-text"></span>
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-slate-100">
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    학교 Google Workspace 계정만 사용할 수 있습니다. Google 계정의 비밀번호는 이 사이트에 입력하지 않습니다.
+                </p>
+            </div>
+        </section>
+
+        <!-- 2단계: 학번/이름 입력 -->
+        <section id="student-info-section" class="hidden max-w-md mx-auto w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8 mt-4 transition-all">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-hyfl-lightblue text-hyfl-blue rounded-full mb-3">
+                    <i class="fa-solid fa-address-card text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-hyfl-navy">석식 신청자 정보 입력</h2>
+                <p class="text-xs text-slate-500 mt-1">Google 계정 인증이 완료되었습니다. 학번과 이름을 입력해주세요.</p>
+            </div>
+
+            <form onsubmit="handleUserLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">학번 (예: 20401)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fa-solid fa-id-badge"></i>
+                        </span>
+                        <input type="text" id="input-student-id" required placeholder="예: 20401"
+                            class="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-hyfl-blue focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">이름</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="input-student-name" required placeholder="예: 홍길동"
+                            class="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-hyfl-blue focus:bg-white transition">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-hyfl-blue hover:bg-hyfl-navy text-white font-medium py-3 rounded-lg text-sm transition shadow-md flex items-center justify-center gap-2">
+                    <span>석식 신청 달력 보기</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <button onclick="restartGoogleLogin()" class="w-full mt-3 text-xs text-slate-500 hover:text-hyfl-blue py-2">
+                다른 Google 계정으로 로그인
+            </button>
+        </section>
+
+<!-- 3단계: 석식 신청 메인 화면 (Google + 학번/이름 인증 후 보임) -->
+        <section id="application-section" class="hidden flex-col gap-5">
+
+
+            <!-- 안내 및 기간 안내 바 -->
+            <div class="bg-gradient-to-r from-hyfl-navy via-hyfl-blue to-slate-800 text-white rounded-xl p-4 sm:p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-amber-300 text-lg shrink-0">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-sm sm:text-base">석식 신청 공지사항</span>
+                            <span class="bg-amber-400 text-hyfl-navy text-[10px] font-extrabold px-2 py-0.5 rounded-full">필독</span>
+                        </div>
+                        <p class="text-xs text-slate-200 mt-0.5" id="notice-period-text">
+                            신청 기간: <span class="font-semibold text-amber-200">2026.10.01 ~ 2026.10.30 17:00 마감</span>
+                        </p>
+                        <p class="text-[10px] text-amber-100 mt-1" id="reminder-status-text">
+                            마감 1주일 전부터 미신청자에게 2일 간격으로 알림
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 self-end md:self-auto">
+                    <button onclick="enableReminderNotifications()" class="text-xs bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 px-3 py-1.5 rounded-lg transition">
+                        <i class="fa-solid fa-bell mr-1"></i> 알림 허용
+                    </button>
+                    <button onclick="changeUserIdentity()" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg border border-white/20 transition">
+                        <i class="fa-solid fa-user-pen mr-1"></i> 학번/이름 변경
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 컨트롤 바: 년월 이동 + 요일 일괄 선택 -->
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+               
+                <!-- 년월 이동 -->
+                <div class="flex items-center space-x-3 w-full lg:w-auto justify-between lg:justify-start">
+                    <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h2 class="text-lg font-bold text-hyfl-navy min-w-[140px] text-center" id="calendar-title-display">
+                        2026년 10월 석식
+                    </h2>
+                    <button onclick="changeMonth(1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                    <button onclick="resetToCurrentMonth()" class="text-xs text-hyfl-blue bg-hyfl-lightblue hover:bg-blue-100 px-2.5 py-1.5 rounded-md font-medium transition">
+                        이번달
+                    </button>
+                </div>
+
+
+                <!-- 요일별 빠른 선택 버튼 그룹 -->
+                <div class="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-center">
+                    <span class="text-xs font-semibold text-slate-500 mr-1"><i class="fa-solid fa-calendar-week text-amber-500"></i> 신청할 요일 선택:</span>
+                    <button id="weekday-btn-1" onclick="toggleWeekdaySelection(1)" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition">월요일</button>
+                    <button id="weekday-btn-2" onclick="toggleWeekdaySelection(2)" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition">화요일</button>
+                    <button id="weekday-btn-3" onclick="toggleWeekdaySelection(3)" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition">수요일</button>
+                    <button id="weekday-btn-4" onclick="toggleWeekdaySelection(4)" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition">목요일</button>
+                    <button id="weekday-btn-5" onclick="toggleWeekdaySelection(5)" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition">금요일</button>
+                    <button onclick="clearAllSelections()" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs rounded-md font-medium border border-rose-200 transition ml-1">전체 해제</button>
+                </div>
+
+
+            </div>
+
+
+            <!-- 달력 그리드 영역 (메뉴/알레르기 확인용) -->
+            <div class="mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-xs text-hyfl-blue">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                날짜를 직접 선택할 수 없습니다. 위의 <strong>월~금 요일 버튼</strong>으로 신청할 요일만 선택합니다.
+                달력은 메뉴와 알레르기 정보를 확인하는 용도로 표시됩니다.
+            </div>
+            <!-- 달력 그리드 영역 (1일~31일 전체 출력) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <!-- 요일 헤더 -->
+                <div class="grid calendar-grid bg-slate-100 border-b border-slate-200 text-center font-bold text-xs py-2.5">
+                    <div class="text-rose-500">일</div>
+                    <div class="text-slate-700">월</div>
+                    <div class="text-slate-700">화</div>
+                    <div class="text-slate-700">수</div>
+                    <div class="text-slate-700">목</div>
+                    <div class="text-slate-700">금</div>
+                    <div class="text-blue-600">토</div>
+                </div>
+
+
+                <!-- 달력 날짜 그리드 -->
+                <div id="calendar-grid-body" class="grid calendar-grid divide-x divide-y divide-slate-100 bg-slate-50 min-h-[500px]">
+                    <!-- JS로 동적 생성 -->
+                </div>
+            </div>
+
+
+            <!-- 데이터 하단 안내 -->
+            <div class="flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400 px-1 gap-2">
+                <div>
+                    <i class="fa-solid fa-clock-rotate-left mr-1"></i> 데이터 마지막 업데이트 시점: <span id="last-updated-time">2026-10-27 08:30:00</span>
+                </div>
+                <div>
+                    석식 메뉴 문의: 영양사 실 (내선 104)
+                </div>
+            </div>
+
+
+        </section>
+
+
+    </main>
+
+
+    <!-- 하단 고정 석식 신청 제출 요약 바 -->
+    <div id="sticky-summary-bar" class="hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-2xl z-20 py-3 px-4 transition-transform duration-300">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-hyfl-lightblue text-hyfl-blue flex items-center justify-center font-bold text-base">
+                    <span id="selected-count-badge">0</span>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500">선택한 신청 요일</div>
+                    <div class="text-sm font-bold text-hyfl-navy">
+                        <span id="selected-days-text" class="text-hyfl-blue font-extrabold text-base">0</span>개 요일 선택함
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <button onclick="clearAllSelections()" class="px-4 py-2.5 text-xs text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition">
+                    초기화
+                </button>
+                <button onclick="submitDinnerRegistration()" class="flex-1 sm:flex-none bg-hyfl-blue hover:bg-hyfl-navy text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>석식 신청 완료</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 모달 1: 관리자 인증 비밀번호 모달 -->
+    <div id="admin-auth-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-bold text-hyfl-navy flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-hyfl-gold"></i> 영양사 선생님 인증
+                </h3>
+                <button onclick="closeAdminAuthModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">관리자 전용 비밀번호를 입력해주세요. (기본 비밀번호: <span class="font-mono bg-slate-100 px-1 rounded font-bold">1234</span>)</p>
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                <input type="password" id="admin-password-input" required placeholder="비밀번호 입력"
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-hyfl-blue">
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeAdminAuthModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg">취소</button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-hyfl-navy hover:bg-slate-900 text-white text-xs font-semibold rounded-lg shadow">로그인</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- 모달 2: 관리자 탭 메인 대시보드 -->
+    <div id="admin-dashboard-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col overflow-hidden border border-slate-100">
+            <!-- Top bar -->
+            <div class="bg-hyfl-navy text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="bg-hyfl-gold text-hyfl-navy font-bold text-xs px-2.5 py-1 rounded">영양사 전용</span>
+                    <h2 class="text-base sm:text-lg font-bold">석식 관리자 대시보드</h2>
+                </div>
+                <button onclick="closeAdminDashboardModal()" class="text-slate-300 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+
+            <!-- Tab Navigation -->
+            <div class="bg-slate-100 border-b border-slate-200 px-6 flex space-x-4 shrink-0">
+                <button onclick="switchAdminTab('tab-submissions')" id="btn-tab-submissions" class="admin-tab-btn py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-hyfl-blue text-hyfl-blue transition">
+                    <i class="fa-solid fa-table-list mr-1"></i> 학생 신청 현황 (<span id="admin-sub-count">0</span>건)
+                </button>
+                <button onclick="switchAdminTab('tab-menus')" id="btn-tab-menus" class="admin-tab-btn py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">
+                    <i class="fa-solid fa-utensils mr-1"></i> 석식 메뉴 수정/등록
+                </button>
+                <button onclick="switchAdminTab('tab-config')" id="btn-tab-config" class="admin-tab-btn py-3 px-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">
+                    <i class="fa-solid fa-sliders mr-1"></i> 신청 기간 및 설정
+                </button>
+            </div>
+
+
+            <!-- Tab Contents Area -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50">
+               
+                <!-- 탭 1: 학생 신청 현황 데이터 -->
+                <div id="tab-submissions" class="admin-tab-content space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white p-4 rounded-xl border border-slate-200">
+                        <div class="relative w-full sm:w-64">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" id="admin-search-input" onkeyup="filterAdminSubmissions()" placeholder="학번 또는 이름 검색..."
+                                class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-hyfl-blue">
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <button onclick="clearAllSubmissions()" class="px-3 py-2 text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg font-semibold border border-rose-200 transition">
+                                <i class="fa-solid fa-trash-can mr-1"></i> 전체 데이터 초기화
+                            </button>
+                            <button onclick="exportToCSV()" class="flex-1 sm:flex-none px-4 py-2 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-bold shadow transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-file-excel"></i>
+                                <span>엑셀(CSV) 다운로드</span>
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
+                                        <th class="py-3 px-4">#</th>
+                                        <th class="py-3 px-4">학번</th>
+                                        <th class="py-3 px-4">이름</th>
+                                        <th class="py-3 px-4">신청 요일 수</th>
+                                        <th class="py-3 px-4">신청 요일</th>
+                                        <th class="py-3 px-4">제출 일시</th>
+                                        <th class="py-3 px-4 text-center">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-submissions-table-body" class="divide-y divide-slate-100">
+                                    <!-- JS로 생성 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- 탭 2: 석식 메뉴 직접 수정 -->
+                <div id="tab-menus" class="admin-tab-content hidden space-y-4">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm max-w-xl mx-auto space-y-4">
+                        <h3 class="text-sm font-bold text-hyfl-navy border-b pb-2">특정 일자 석식 메뉴 / 칼로리 편집</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">수정할 날짜 선택</label>
+                            <input type="date" id="admin-edit-date" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs" onchange="loadDateMenuForEdit()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">메뉴 목록 (줄바꿈 또는 쉼표 구분)</label>
+                            <textarea id="admin-edit-menu" rows="4" placeholder="예: 쌀밥, 순두부찌개, 제육볶음, 깍두기, 청포도"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">칼로리 정보</label>
+                            <input type="text" id="admin-edit-kcal" placeholder="예: 850 kcal" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">알레르기 번호</label>
+                            <input type="text" id="admin-edit-allergies" placeholder="메뉴 순서대로 | 구분 (예: 1,5 | 5,6,10 | 없음)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                            <p class="text-[10px] text-slate-400 mt-1">메뉴 순서와 같은 순서로 입력합니다.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="admin-edit-closed" class="rounded text-hyfl-blue">
+                            <label for="admin-edit-closed" class="text-xs text-rose-600 font-semibold">급식 미운영 / 휴일로 설정</label>
+                        </div>
+                        <button onclick="saveAdminMenuEdit()" class="w-full py-2.5 bg-hyfl-blue hover:bg-hyfl-navy text-white text-xs font-bold rounded-lg shadow transition">
+                            메뉴 저장 반영하기
+                        </button>
+                    </div>
+                </div>
+
+
+                <!-- 탭 3: 신청 기간 및 정보 설정 -->
+                <div id="tab-config" class="admin-tab-content hidden space-y-4">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm max-w-xl mx-auto space-y-4">
+                        <h3 class="text-sm font-bold text-hyfl-navy border-b pb-2">석식 신청 공지 및 마감 설정</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">신청 시작일</label>
+                            <input type="date" id="admin-cfg-start" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">신청 마감일 및 시간</label>
+                            <input type="datetime-local" id="admin-cfg-end" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                        </div>
+                        <button onclick="saveAdminConfig()" class="w-full py-2.5 bg-hyfl-blue hover:bg-hyfl-navy text-white text-xs font-bold rounded-lg shadow transition">
+                            설정 내용 업데이트
+                        </button>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 범용 안내 알림 모달/토스트 -->
+    <div id="toast-message" class="hidden fixed top-20 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl z-50 flex items-center gap-3 text-xs border border-slate-700">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-text">처리가 완료되었습니다.</span>
+    </div>
+
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        /**
+         * 한영외고 석식 신청 시스템 애플리케이션 상태 관리
+         */
+        const CONFIG = {
+            DEFAULT_PASS: '1234',
+            STORAGE_KEY_SUBMISSIONS: 'hyfl_dinner_submissions_v1',
+            STORAGE_KEY_CUSTOM_MENUS: 'hyfl_dinner_custom_menus_v1',
+            STORAGE_KEY_CONFIG: 'hyfl_dinner_config_v1',
+            NEIS_ATPT_CODE: 'B10', // 서울특별시교육청
+            NEIS_SD_CODE: '7010536', // 한영외국어고등학교
+
+            // Google 로그인 설정
+            // 실제 배포 전 Google Cloud Console에서 발급한 OAuth Client ID로 교체해야 합니다.
+            GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com',
+            // 한영외고의 실제 Google Workspace 도메인을 입력하세요.
+            // 현재 공개 자료만으로 실제 학생 계정 도메인은 확인되지 않아 임의로 넣지 않았습니다.
+            SCHOOL_GOOGLE_DOMAIN: 'YOUR_SCHOOL_DOMAIN',
+
+            // 신청 마감 7일 전부터 2일 간격으로 알림: D-7, D-5, D-3, D-1
+            REMINDER_START_DAYS: 7,
+            REMINDER_INTERVAL_DAYS: 2,
+            STORAGE_KEY_REMINDER: 'hyfl_dinner_reminder_v1',
+        };
+
+
+        // App States
+        let currentUser = { studentId: '', name: '', googleEmail: '', googleName: '', googlePicture: '' };
+        let currentYear = 2026;
+        let currentMonth = 10; // 1-indexed (10월)
+        let selectedWeekdays = new Set(); // 1:월, 2:화, 3:수, 4:목, 5:금
+        let mealsData = {}; // 'YYYY-MM-DD': { menu: [], allergies: [], kcal: '', isClosed: false }
+        let submissions = [];
+        let systemConfig = {
+            startDate: '2026-10-01',
+            endDate: '2026-10-30',
+            deadlineTime: '17:00'
+        };
+
+
+        // 초기화 실행
+        window.addEventListener('DOMContentLoaded', () => {
+            loadLocalStorages();
+            fetchNeisMealData(currentYear, currentMonth);
+            updateNoticeText();
+            initializeGoogleLogin();
+
+            // 브라우저 알림은 사용자가 페이지를 열어 둔 경우에 주기적으로 확인합니다.
+            setInterval(checkReminderNotification, 30 * 60 * 1000);
+        });
+
+
+        // 1. LocalStorage 로드
+        function loadLocalStorages() {
+            const savedSub = localStorage.getItem(CONFIG.STORAGE_KEY_SUBMISSIONS);
+            if (savedSub) {
+                submissions = JSON.parse(savedSub).filter(s => Array.isArray(s.weekdays));
+            }
+
+
+            const savedCfg = localStorage.getItem(CONFIG.STORAGE_KEY_CONFIG);
+            if (savedCfg) systemConfig = JSON.parse(savedCfg);
+        }
+
+
+        // 2. 나이스(NEIS) API 연동 및 Fallback 데이터 메커니즘
+        async function fetchNeisMealData(year, month) {
+            const formattedMonth = String(month).padStart(2, '0');
+            const ym = `year{formattedMonth}`;
+           
+            // 나이스 공개 API URL
+            const apiUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=${CONFIG.NEIS_ATPT_CODE}&SD_SCHUL_CODE=${CONFIG.NEIS_SD_CODE}&MMEAL_SC_CODE=3&MLSV_YMD=${ym}`;
+           
+            let loadedFromNeis = false;
+
+
+            try {
+                const response = await fetch(apiUrl);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row) {
+                        parseNeisResponse(data.mealServiceDietInfo[1].row);
+                        loadedFromNeis = true;
+                        document.getElementById('data-status-tag').textContent = '나이스 API 수신 완료';
+                        document.getElementById('data-status-tag').className = 'text-emerald-300';
+                    }
+                }
+            } catch (err) {
+                console.warn('NEIS API 접속 제약 또는 CORS로 인하여 자동 모의 데이터로 전환합니다.', err);
+            }
+
+
+            if (!loadedFromNeis) {
+                // CORS나 API 오프라인 시 한영외고 맞춤형 모의 데이터를 동적 생성
+                generateFallbackMealData(year, month);
+                document.getElementById('data-status-tag').textContent = '샘플 데이터 로드됨';
+                document.getElementById('data-status-tag').className = 'text-amber-300';
+            }
+
+
+            // 사용자 정의(관리자가 수정한) 메뉴 덮어쓰기
+            applyCustomMenuOverrides();
+            renderCalendar();
+            document.getElementById('last-updated-time').textContent = new Date().toLocaleString();
+        }
+
+
+        // 나이스 응답 파싱
+        function parseNeisResponse(rows) {
+            rows.forEach(row => {
+                const ymd = row.MLSV_YMD;
+                const formattedDate = `${ymd.substring(0,4)}-${ymd.substring(4,6)}-${ymd.substring(6,8)}`;
+                const rawMenu = row.DDISH_NM || '';
+
+                // NEIS 메뉴의 괄호 안 숫자를 알레르기 번호로 분리
+                const menuLines = rawMenu
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .split('\n')
+                    .map(item => item.trim())
+                    .filter(Boolean);
+
+                const menuList = [];
+                const allergyList = [];
+
+                menuLines.forEach(item => {
+                    const matches = [...item.matchAll(/\(([^)]*)\)/g)];
+                    const allergyNumbers = matches
+                        .flatMap(match => match[1].split(/[.,]/))
+                        .map(v => v.trim())
+                        .filter(v => /^\d+$/.test(v));
+
+                    const cleanName = item
+                        .replace(/\([^)]*\)/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+
+                    if (cleanName) menuList.push(cleanName);
+                    allergyList.push(allergyNumbers);
+                });
+
+                mealsData[formattedDate] = {
+                    menu: menuList,
+                    allergies: allergyList,
+                    kcal: row.CAL_INFO || '750 kcal',
+                    isClosed: false
+                };
+            });
+        }
+
+
+        // 한영외고 풍의 고품질 샘플 석식 데이터 생성 (Fallback)
+        function generateFallbackMealData(year, month) {
+            const daysInMonth = new Date(year, month, 0).getDate();
+           
+            const sampleMenus = [
+                { menu: ['차수수밥', '돈육김치찌개', '수제치킨까스*소스', '비빔막국수', '석박지', '샤인머스켓'], allergies: [[''], ['5,6'], ['1,2,5,6,10'], ['5,6'], [''], ['']], kcal: '820 kcal' },
+                { menu: ['해물볶음밥', '유부장국', '꿔바로우탕수육', '짜장떡볶이', '배추김치', '유기농식혜'], allergies: [['5,6'], ['5'], ['5,6,10'], ['1,5,6'], [''], ['']], kcal: '890 kcal' },
+                { menu: ['현미밥', '쇠고기미역국', '안동찜닭', '야채계란말이', '오이생채', '깍두기'], allergies: [[''], ['5,6'], ['5,6,10'], ['1,5,6'], [''], ['']], kcal: '780 kcal' },
+                { menu: ['발아현미밥', '순두부백탕', '훈제오리구이*부추무침', '감자채볶음', '열무김치', '조각수박'], allergies: [[''], ['5'], ['5,6,10'], ['5'], [''], ['']], kcal: '810 kcal' },
+                { menu: ['칼슘찹쌀밥', '부대찌개*라면사리', '모둠튀김', '치커리사과무침', '배추김치', '요구르트'], allergies: [[''], ['5,6,10'], ['1,2,5,6,10'], [''], [''], ['2']], kcal: '910 kcal' },
+                { menu: ['전복죽', '꼬치어묵국', '수제햄버거', '웨지감자구이', '피클', '자몽에이드'], allergies: [['5,6,8'], ['5,6'], ['1,2,5,6,10'], [''], [''], ['']], kcal: '850 kcal' }
+            ];
+
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayStr = String(d).padStart(2, '0');
+                const monthStr = String(month).padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
+                const dateObj = new Date(year, month - 1, d);
+                const dayOfWeek = dateObj.getDay();
+
+
+                // 주말(0:일, 6:토)인 경우 미운영
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    mealsData[dateKey] = { menu: [], allergies: [], kcal: '', isClosed: true };
+                } else {
+                    // 주중 랜덤 샘플 메뉴 배정
+                    const sampleIndex = (d + month) % sampleMenus.length;
+                    mealsData[dateKey] = {
+                        menu: sampleMenus[sampleIndex].menu,
+                        allergies: sampleMenus[sampleIndex].allergies || [],
+                        kcal: sampleMenus[sampleIndex].kcal,
+                        isClosed: false
+                    };
+                }
+            }
+        }
+
+
+        // 관리자가 직접 수정한 메뉴 데이터 로컬스토리지에서 덮어쓰기
+        function applyCustomMenuOverrides() {
+            const savedCustom = localStorage.getItem(CONFIG.STORAGE_KEY_CUSTOM_MENUS);
+            if (savedCustom) {
+                const customMenus = JSON.parse(savedCustom);
+                Object.keys(customMenus).forEach(dateKey => {
+                    mealsData[dateKey] = customMenus[dateKey];
+                });
+            }
+        }
+
+
+        // 3. 사용자 로그인 / 인적사항 입력
+        function handleUserLogin(e) {
+            e.preventDefault();
+
+            if (!currentUser.googleEmail) {
+                showToast('먼저 학교 Google 계정으로 로그인해주세요.', 'error');
+                return;
+            }
+
+            const idInput = document.getElementById('input-student-id').value.trim();
+            const nameInput = document.getElementById('input-student-name').value.trim();
+
+            if (!idInput || !nameInput) {
+                showToast('학번과 이름을 모두 입력해주세요.', 'error');
+                return;
+            }
+
+            currentUser.studentId = idInput;
+            currentUser.name = nameInput;
+
+            document.getElementById('display-student-info').textContent =
+                `${currentUser.studentId} ${currentUser.name}`;
+            document.getElementById('user-display').classList.remove('hidden');
+
+            document.getElementById('google-login-section').classList.add('hidden');
+            document.getElementById('student-info-section').classList.add('hidden');
+            document.getElementById('application-section').classList.remove('hidden');
+            document.getElementById('application-section').classList.add('flex');
+            document.getElementById('sticky-summary-bar').classList.remove('hidden');
+
+            showToast(`${currentUser.name}님 환영합니다! 신청할 요일을 선택해주세요.`, 'success');
+
+            // 로그인 직후 미신청자 알림 여부 확인
+            checkReminderNotification();
+        }
+
+        function changeUserIdentity() {
+            document.getElementById('google-login-section').classList.remove('hidden');
+            document.getElementById('student-info-section').classList.add('hidden');
+            document.getElementById('application-section').classList.add('hidden');
+            document.getElementById('sticky-summary-bar').classList.add('hidden');
+        }
+
+        // Google Identity Services 초기화
+        function initializeGoogleLogin() {
+            if (!window.google || !google.accounts || !google.accounts.id) {
+                setTimeout(initializeGoogleLogin, 500);
+                return;
+            }
+
+            if (CONFIG.GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
+                document.getElementById('google-login-button').innerHTML = `
+                    <div class="w-full p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 text-center leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                        아직 Google OAuth Client ID가 설정되지 않았습니다.<br>
+                        관리자 설정에서 <strong>GOOGLE_CLIENT_ID</strong>와
+                        <strong>SCHOOL_GOOGLE_DOMAIN</strong>을 입력해주세요.
+                    </div>`;
+                return;
+            }
+
+            google.accounts.id.initialize({
+                client_id: CONFIG.GOOGLE_CLIENT_ID,
+                callback: handleGoogleCredential,
+                auto_select: false,
+                cancel_on_tap_outside: true,
+                hosted_domain: CONFIG.SCHOOL_GOOGLE_DOMAIN
+            });
+
+            google.accounts.id.renderButton(
+                document.getElementById('google-login-button'),
+                {
+                    type: 'standard',
+                    theme: 'outline',
+                    size: 'large',
+                    text: 'signin_with',
+                    shape: 'rectangular',
+                    width: 330
+                }
+            );
+        }
+
+        // Google에서 받은 ID Token의 기본 정보만 화면에서 사용합니다.
+        // 실제 서비스에서는 반드시 서버에서 JWT 서명/iss/aud/exp와 학교 도메인을 검증해야 합니다.
+        function handleGoogleCredential(response) {
+            try {
+                const payload = parseJwtPayload(response.credential);
+                const email = payload.email || '';
+                const verified = payload.email_verified === true;
+
+                if (!verified) {
+                    showToast('Google 계정 이메일 인증 상태를 확인할 수 없습니다.', 'error');
+                    return;
+                }
+
+                if (CONFIG.SCHOOL_GOOGLE_DOMAIN &&
+                    !CONFIG.SCHOOL_GOOGLE_DOMAIN.startsWith('YOUR_')) {
+                    const domain = email.split('@')[1] || '';
+                    if (domain.toLowerCase() !== CONFIG.SCHOOL_GOOGLE_DOMAIN.toLowerCase()) {
+                        showToast('학교 Google 계정으로 로그인해주세요.', 'error');
+                        return;
+                    }
+                }
+
+                currentUser.googleEmail = email;
+                currentUser.googleName = payload.name || '';
+                currentUser.googlePicture = payload.picture || '';
+
+                document.getElementById('google-login-section').classList.add('hidden');
+                document.getElementById('student-info-section').classList.remove('hidden');
+                document.getElementById('google-account-text').textContent =
+                    `${email} 계정으로 인증되었습니다.`;
+                document.getElementById('google-login-status').classList.remove('hidden');
+
+                // Google 프로필 이름을 참고값으로 넣되, 최종 이름은 사용자가 직접 확인
+                if (currentUser.googleName) {
+                    document.getElementById('input-student-name').value = currentUser.googleName;
+                }
+
+                checkReminderNotification();
+            } catch (error) {
+                console.error(error);
+                showToast('Google 로그인 정보를 확인하지 못했습니다.', 'error');
+            }
+        }
+
+        function parseJwtPayload(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                atob(base64).split('').map(c =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join('')
+            );
+            return JSON.parse(jsonPayload);
+        }
+
+        function restartGoogleLogin() {
+            currentUser.googleEmail = '';
+            currentUser.googleName = '';
+            currentUser.googlePicture = '';
+            document.getElementById('student-info-section').classList.add('hidden');
+            document.getElementById('google-login-section').classList.remove('hidden');
+            document.getElementById('google-login-status').classList.add('hidden');
+            document.getElementById('input-student-id').value = '';
+            document.getElementById('input-student-name').value = '';
+
+            if (window.google && google.accounts && google.accounts.id) {
+                google.accounts.id.disableAutoSelect();
+            }
+        }
+
+
+        // 4. 달력 렌더링
+        // 날짜 자체는 선택하지 않고, 달력에서는 메뉴와 알레르기 정보를 확인합니다.
+        function renderCalendar() {
+            const gridBody = document.getElementById('calendar-grid-body');
+            gridBody.innerHTML = '';
+
+            document.getElementById('calendar-title-display').textContent = `${currentYear}년 ${currentMonth}월 석식`;
+
+            const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'bg-slate-100/50 p-2 min-h-[110px] hidden sm:block border-b border-slate-100';
+                gridBody.appendChild(emptyCell);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const monthStr = String(currentMonth).padStart(2, '0');
+                const dateKey = `${currentYear}-${monthStr}-${dayStr}`;
+                const dateObj = new Date(currentYear, currentMonth - 1, day);
+                const dayOfWeek = dateObj.getDay();
+
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const mealInfo = mealsData[dateKey] || {
+                    menu: [], allergies: [], kcal: '', isClosed: true
+                };
+                const isWeekdaySelected = selectedWeekdays.has(dayOfWeek);
+
+                let cellStyle = "p-2 min-h-[145px] sm:min-h-[155px] flex flex-col transition-all duration-150 border-b border-slate-100 relative ";
+                if (isWeekend) {
+                    cellStyle += "bg-slate-100/70 text-slate-400";
+                } else if (mealInfo.isClosed || mealInfo.menu.length === 0) {
+                    cellStyle += "bg-amber-50/40 text-slate-400";
+                } else if (isWeekdaySelected) {
+                    cellStyle += "bg-blue-50/70 ring-1 ring-inset ring-hyfl-blue";
+                } else {
+                    cellStyle += "bg-white";
+                }
+
+                const cell = document.createElement('div');
+                cell.className = cellStyle;
+
+                let headerHtml = `<div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-xs ${
+                            dayOfWeek === 0 ? 'text-rose-500' :
+                            dayOfWeek === 6 ? 'text-blue-600' : 'text-slate-700'
+                        }">${day}일</span>
+                        <span class="text-[9px] text-slate-400">${weekdayNames[dayOfWeek]}</span>
+                    </div>`;
+
+                if (dayOfWeek >= 1 && dayOfWeek <= 5 && isWeekdaySelected && !mealInfo.isClosed) {
+                    headerHtml += `<span class="text-[9px] px-1.5 py-0.5 bg-hyfl-blue text-white rounded-full">신청 요일</span>`;
+                } else if (isWeekend) {
+                    headerHtml += `<span class="text-[9px] px-1.5 py-0.5 bg-slate-200 text-slate-500 rounded">주말</span>`;
+                } else if (mealInfo.isClosed || mealInfo.menu.length === 0) {
+                    headerHtml += `<span class="text-[9px] px-1.5 py-0.5 bg-slate-200 text-slate-500 rounded">미운영</span>`;
+                }
+                headerHtml += `</div>`;
+
+                let bodyHtml = `<div class="flex-1 text-[10px] leading-tight">`;
+
+                if (isWeekend) {
+                    bodyHtml += `<p class="text-slate-400 text-center text-[10px] py-4">주말<br/>(급식 미운영)</p>`;
+                } else if (mealInfo.isClosed || mealInfo.menu.length === 0) {
+                    bodyHtml += `<p class="text-amber-600/80 text-center text-[10px] py-4 font-medium">급식 미운영</p>`;
+                } else {
+                    bodyHtml += `<ul class="space-y-1 text-slate-700">`;
+                    mealInfo.menu.forEach((item, idx) => {
+                        const allergies = (mealInfo.allergies && mealInfo.allergies[idx])
+                            ? mealInfo.allergies[idx]
+                            : [];
+                        const allergyText = allergies.length
+                            ? `<span class="ml-1 text-[9px] text-rose-500 font-medium">[${allergies.join(',')}]</span>`
+                            : '';
+
+                        bodyHtml += `<li class="truncate" title="${item}${
+                            allergies.length ? ' / 알레르기: ' + allergies.join(', ') : ''
+                        }">• ${item}${allergyText}</li>`;
+                    });
+                    bodyHtml += `</ul>`;
+                }
+
+                bodyHtml += `</div>`;
+
+                const allergyGuide = `
+                    <div class="mt-1 pt-1 border-t border-slate-100 text-[8px] text-slate-400 leading-tight">
+                        알레르기: 1 난류 · 2 우유 · 3 메밀 · 4 땅콩 · 5 대두 · 6 밀 · 7 고등어 ·
+                        8 게 · 9 새우 · 10 돼지고기 · 11 복숭아 · 12 토마토 · 13 아황산류 ·
+                        14 호두 · 15 닭고기 · 16 쇠고기 · 17 오징어 · 18 조개류
+                    </div>`;
+
+                const footerHtml = mealInfo.kcal
+                    ? `<div class="mt-1 text-[9px] text-slate-400 font-mono text-right">${mealInfo.kcal}</div>`
+                    : '';
+
+                cell.innerHTML = headerHtml + bodyHtml + allergyGuide + footerHtml;
+                gridBody.appendChild(cell);
+            }
+
+            updateSummaryBar();
+            updateWeekdayButtons();
+        }
+
+        // 5. 요일별 신청 동작 처리
+        function toggleWeekdaySelection(targetDayOfWeek) {
+            if (targetDayOfWeek < 1 || targetDayOfWeek > 5) return;
+
+            if (selectedWeekdays.has(targetDayOfWeek)) {
+                selectedWeekdays.delete(targetDayOfWeek);
+                showToast(`${getWeekdayName(targetDayOfWeek)} 신청이 해제되었습니다.`, 'info');
+            } else {
+                selectedWeekdays.add(targetDayOfWeek);
+                showToast(`${getWeekdayName(targetDayOfWeek)} 전체가 신청 요일로 선택되었습니다.`, 'success');
+            }
+
+            renderCalendar();
+        }
+
+        function getWeekdayName(dayOfWeek) {
+            return ['', '월요일', '화요일', '수요일', '목요일', '금요일'][dayOfWeek] || '';
+        }
+
+        function updateWeekdayButtons() {
+            for (let day = 1; day <= 5; day++) {
+                const btn = document.getElementById(`weekday-btn-${day}`);
+                if (!btn) continue;
+
+                if (selectedWeekdays.has(day)) {
+                    btn.className = "px-2.5 py-1 bg-hyfl-blue text-white text-xs rounded-md font-bold border border-hyfl-blue transition shadow-sm";
+                    btn.textContent = `${getWeekdayName(day)} ✓`;
+                } else {
+                    btn.className = "px-2.5 py-1 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-hyfl-blue text-xs rounded-md font-medium border border-slate-200 transition";
+                    btn.textContent = getWeekdayName(day);
+                }
+            }
+        }
+
+        function clearAllSelections() {
+            selectedWeekdays.clear();
+            renderCalendar();
+            showToast('모든 신청 요일이 해제되었습니다.', 'info');
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            } else if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            fetchNeisMealData(currentYear, currentMonth);
+        }
+
+
+        function resetToCurrentMonth() {
+            const now = new Date();
+            currentYear = 2026; // 시뮬레이션용 기준연도 (필요시 now.getFullYear() 사용 가능)
+            currentMonth = 10;
+            fetchNeisMealData(currentYear, currentMonth);
+        }
+
+
+        // 요약 바 업데이트
+        function updateSummaryBar() {
+            const count = selectedWeekdays.size;
+            document.getElementById('selected-count-badge').textContent = count;
+            document.getElementById('selected-days-text').textContent = count;
+        }
+
+
+        // 석식 신청 제출
+        function submitDinnerRegistration() {
+            if (selectedWeekdays.size === 0) {
+                showToast('신청할 요일을 최소 1개 이상 선택해주세요.', 'error');
+                return;
+            }
+
+            const weekdayNames = Array.from(selectedWeekdays)
+                .sort((a, b) => a - b)
+                .map(getWeekdayName);
+
+            const newSubmission = {
+                id: Date.now(),
+                studentId: currentUser.studentId,
+                name: currentUser.name,
+                weekdays: Array.from(selectedWeekdays).sort((a, b) => a - b),
+                weekdayNames: weekdayNames,
+                createdAt: new Date().toLocaleString()
+            };
+
+            const existingIndex = submissions.findIndex(
+                s => s.studentId === currentUser.studentId
+            );
+
+            if (existingIndex >= 0) {
+                submissions[existingIndex] = newSubmission;
+            } else {
+                submissions.push(newSubmission);
+            }
+
+            localStorage.setItem(CONFIG.STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
+
+            showToast(
+                `[신청 완료] ${currentUser.name}님의 석식 신청이 ${weekdayNames.join(', ')} 기준으로 접수되었습니다.`,
+                'success'
+            );
+        }
+
+
+        // 6. 영양사 관리자 모듈
+        function openAdminAuthModal() {
+            document.getElementById('admin-auth-modal').classList.remove('hidden');
+        }
+
+
+        function closeAdminAuthModal() {
+            document.getElementById('admin-auth-modal').classList.add('hidden');
+            document.getElementById('admin-password-input').value = '';
+        }
+
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('admin-password-input').value;
+            if (pass === CONFIG.DEFAULT_PASS) {
+                closeAdminAuthModal();
+                openAdminDashboard();
+            } else {
+                showToast('비밀번호가 올바르지 않습니다. (기본: 1234)', 'error');
+            }
+        }
+
+
+        function openAdminDashboard() {
+            document.getElementById('admin-dashboard-modal').classList.remove('hidden');
+            renderAdminSubmissions();
+        }
+
+
+        function closeAdminDashboardModal() {
+            document.getElementById('admin-dashboard-modal').classList.add('hidden');
+        }
+
+
+        function switchAdminTab(tabId) {
+            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.classList.remove('border-hyfl-blue', 'text-hyfl-blue');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+
+
+            document.getElementById(tabId).classList.remove('hidden');
+           
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+            activeBtn.classList.add('border-hyfl-blue', 'text-hyfl-blue');
+
+
+            if (tabId === 'tab-submissions') renderAdminSubmissions();
+        }
+
+
+        // 관리자 탭 1: 학생 신청 목록 출력
+        function renderAdminSubmissions(filterKeyword = '') {
+            const tbody = document.getElementById('admin-submissions-table-body');
+            tbody.innerHTML = '';
+
+
+            document.getElementById('admin-sub-count').textContent = submissions.length;
+
+
+            let list = submissions;
+            if (filterKeyword) {
+                list = list.filter(s => s.studentId.includes(filterKeyword) || s.name.includes(filterKeyword));
+            }
+
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">제출된 석식 신청 데이터가 없습니다.</td></tr>`;
+                return;
+            }
+
+
+            list.forEach((sub, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono text-slate-400">${idx + 1}</td>
+                    <td class="py-3 px-4 font-bold text-hyfl-navy">${sub.studentId}</td>
+                    <td class="py-3 px-4 font-semibold">${sub.name}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-blue-100 text-hyfl-blue rounded-full font-bold">${(sub.weekdayNames || []).length}개</span></td>
+                    <td class="py-3 px-4 max-w-xs truncate text-slate-600" title="${(sub.weekdayNames || []).join(', ')}">${(sub.weekdayNames || []).join(', ')}</td>
+                    <td class="py-3 px-4 text-slate-400 text-[11px]">${sub.createdAt}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteSubmission(${sub.id})" class="text-rose-500 hover:text-rose-700 px-2 py-1 rounded">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+
+        function filterAdminSubmissions() {
+            const val = document.getElementById('admin-search-input').value.trim();
+            renderAdminSubmissions(val);
+        }
+
+
+        function deleteSubmission(id) {
+            submissions = submissions.filter(s => s.id !== id);
+            localStorage.setItem(CONFIG.STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
+            renderAdminSubmissions();
+            showToast('해당 신청 데이터가 삭제되었습니다.', 'info');
+        }
+
+
+        function clearAllSubmissions() {
+            if (confirm('정말로 모든 학생의 신청 데이터를 초기화하시겠습니까?')) {
+                submissions = [];
+                localStorage.removeItem(CONFIG.STORAGE_KEY_SUBMISSIONS);
+                renderAdminSubmissions();
+                showToast('모든 데이터가 삭제되었습니다.', 'info');
+            }
+        }
+
+
+        // 엑셀(CSV) 다운로드 기능 (UTF-8 BOM 적용하여 엑셀에서 한글 깨짐 방지)
+        function exportToCSV() {
+            if (submissions.length === 0) {
+                showToast('다운로드할 데이터가 없습니다.', 'error');
+                return;
+            }
+
+
+            let csvContent = "\uFEFF학번,이름,신청일수,신청날짜목록,제출일시\n";
+
+
+            submissions.forEach(sub => {
+                const datesStr = `"${sub.dates.join('; ')}"`;
+                csvContent += `${sub.studentId},${sub.name},${sub.totalDays},${datesStr},${sub.createdAt}\n`;
+            });
+
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `한영외고_석식신청명단_${currentYear}_${currentMonth}월.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('엑셀(CSV) 파일이 다운로드 되었습니다.', 'success');
+        }
+
+
+        // 관리자 탭 2: 특정 일자 메뉴 수정 저장
+        function loadDateMenuForEdit() {
+            const dateVal = document.getElementById('admin-edit-date').value;
+            if (!dateVal) return;
+
+
+            const existing = mealsData[dateVal] || { menu: [], allergies: [], kcal: '', isClosed: false };
+            document.getElementById('admin-edit-menu').value = existing.menu.join('\n');
+            document.getElementById('admin-edit-kcal').value = existing.kcal || '800 kcal';
+            document.getElementById('admin-edit-allergies').value = (existing.allergies || [])
+                .map(a => a.length ? a.join(',') : '없음')
+                .join(' | ');
+            document.getElementById('admin-edit-closed').checked = existing.isClosed;
+        }
+
+
+        function saveAdminMenuEdit() {
+            const dateVal = document.getElementById('admin-edit-date').value;
+            if (!dateVal) {
+                showToast('수정할 날짜를 선택해주세요.', 'error');
+                return;
+            }
+
+
+            const rawMenu = document.getElementById('admin-edit-menu').value;
+            const kcalVal = document.getElementById('admin-edit-kcal').value;
+            const isClosedVal = document.getElementById('admin-edit-closed').checked;
+
+
+            const menuList = rawMenu.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+
+
+            const updatedObj = {
+                menu: menuList,
+                kcal: kcalVal,
+                isClosed: isClosedVal
+            };
+
+
+            mealsData[dateVal] = updatedObj;
+
+
+            // 로컬스토리지 저장
+            const savedCustom = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_CUSTOM_MENUS) || '{}');
+            savedCustom[dateVal] = updatedObj;
+            localStorage.setItem(CONFIG.STORAGE_KEY_CUSTOM_MENUS, JSON.stringify(savedCustom));
+
+
+            renderCalendar();
+            showToast(`${dateVal} 메뉴 정보가 성공적으로 업데이트되었습니다.`, 'success');
+        }
+
+
+        // 관리자 탭 3: 공지 및 마감 기간 저장
+        function saveAdminConfig() {
+            const start = document.getElementById('admin-cfg-start').value;
+            const end = document.getElementById('admin-cfg-end').value;
+
+
+            if (start && end) {
+                systemConfig.startDate = start;
+                systemConfig.endDate = end;
+                localStorage.setItem(CONFIG.STORAGE_KEY_CONFIG, JSON.stringify(systemConfig));
+                updateNoticeText();
+                showToast('신청 기간 설정이 업데이트되었습니다.', 'success');
+            } else {
+                showToast('시작일과 마감일을 모두 선택해주세요.', 'error');
+            }
+        }
+
+
+        // 마감 7일 전부터 2일 간격(D-7, D-5, D-3, D-1) 알림
+        function getDeadlineDate() {
+            const date = new Date(`${systemConfig.endDate}T${systemConfig.deadlineTime || '17:00'}:00`);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        function hasCurrentUserSubmitted() {
+            if (!currentUser.studentId) return false;
+            return submissions.some(
+                s => s.studentId === currentUser.studentId &&
+                     Array.isArray(s.weekdays) &&
+                     s.weekdays.length > 0
+            );
+        }
+
+        async function enableReminderNotifications() {
+            if (!('Notification' in window)) {
+                showToast('이 브라우저에서는 알림 기능을 사용할 수 없습니다.', 'error');
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+
+            if (permission === 'granted') {
+                showToast('미신청자 알림이 허용되었습니다.', 'success');
+                checkReminderNotification();
+            } else {
+                showToast('브라우저 알림 권한이 허용되지 않았습니다.', 'error');
+            }
+        }
+
+        function checkReminderNotification() {
+            if (!currentUser.googleEmail || !currentUser.studentId) return;
+
+            const deadline = getDeadlineDate();
+            if (!deadline) return;
+
+            const now = new Date();
+            const diffMs = deadline.getTime() - now.getTime();
+            const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+            const statusEl = document.getElementById('reminder-status-text');
+
+            if (hasCurrentUserSubmitted()) {
+                if (statusEl) statusEl.textContent = '신청이 완료되어 추가 알림을 보내지 않습니다.';
+                return;
+            }
+
+            // 마감 7일 전 ~ 마감 직전까지만
+            if (daysLeft <= CONFIG.REMINDER_START_DAYS && daysLeft > 0) {
+                // D-7, D-5, D-3, D-1에 알림
+                const shouldRemind =
+                    (CONFIG.REMINDER_START_DAYS - daysLeft) % CONFIG.REMINDER_INTERVAL_DAYS === 0;
+
+                if (statusEl) {
+                    statusEl.textContent = shouldRemind
+                        ? `마감까지 ${daysLeft}일 남았습니다. 아직 신청하지 않았습니다.`
+                        : `마감까지 ${daysLeft}일 남았습니다.`;
+                }
+
+                if (!shouldRemind) return;
+
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+                const reminderKey = `${currentUser.googleEmail}_${systemConfig.endDate}_${todayKey}`;
+                const lastReminder = localStorage.getItem(CONFIG.STORAGE_KEY_REMINDER);
+
+                if (lastReminder === reminderKey) return;
+
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('한영외고 석식 신청 알림', {
+                        body: `아직 석식 신청을 하지 않았습니다. 마감까지 ${daysLeft}일 남았습니다.`,
+                        icon: 'https://www.gstatic.com/images/branding/product/1x/notifications_48dp.png'
+                    });
+                    localStorage.setItem(CONFIG.STORAGE_KEY_REMINDER, reminderKey);
+                } else if ('Notification' in window && Notification.permission !== 'denied') {
+                    // 최초 로그인 후 권한 요청
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') checkReminderNotification();
+                    });
+                }
+            } else if (statusEl && daysLeft > CONFIG.REMINDER_START_DAYS) {
+                statusEl.textContent = `마감 ${CONFIG.REMINDER_START_DAYS}일 전부터 미신청자에게 2일 간격으로 알림`;
+            }
+        }
+
+        function updateNoticeText() {
+            const el = document.getElementById('notice-period-text');
+            if (el) {
+                el.innerHTML = `신청 기간: <span class="font-semibold text-amber-200">${systemConfig.startDate} ~ ${systemConfig.endDate} ${systemConfig.deadlineTime || '17:00'} 마감</span>`;
+            }
+        }
+
+
+        // 7. 시스템 토스트 알림 메시지 UI
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast-message');
+            const text = document.getElementById('toast-text');
+            const icon = document.getElementById('toast-icon');
+
+
+            text.textContent = message;
+
+
+            if (type === 'success') {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+            } else if (type === 'error') {
+                icon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-base';
+            } else {
+                icon.className = 'fa-solid fa-circle-info text-sky-400 text-base';
+            }
+
+
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
