@@ -443,8 +443,9 @@
 
         // App States
         let currentUser = { studentId: '', name: '' };
-        let currentYear = 2026;
-        let currentMonth = 10; // 1-indexed (10월)
+        const today = new Date();
+        let currentYear = today.getFullYear();
+        let currentMonth = today.getMonth() + 1; // 1-indexed
         let selectedDates = new Set(); // YYYY-MM-DD
         let selectedWeekdays = new Set();
         let mealsData = {}; // 'YYYY-MM-DD': { menu: [], kcal: '', isClosed: false }
@@ -477,15 +478,23 @@
 
         // 2. 나이스(NEIS) API 연동 및 Fallback 데이터 메커니즘
         async function fetchNeisMealData(year, month) {
-     const formattedMonth = String(month).padStart(2, '0');
+            const formattedMonth = String(month).padStart(2, '0');
+            const lastDay = new Date(year, month, 0).getDate();
+            const startDate = `${year}${formattedMonth}01`;
+            const endDate = `${year}${formattedMonth}${String(lastDay).padStart(2, '0')}`;
 
-const lastDay = new Date(year, month, 0).getDate();
-
-const startDate = `year{formattedMonth}01`;
-const endDate = `year{formattedMonth}${String(lastDay).padStart(2, '0')}`;
-
-// 나이스 공개 API URL
-const apiUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=CONFIG.NEISATPTCODE&SDSCHULCODE={CONFIG.NEIS_SD_CODE}&MMEAL_SC_CODE=3&MLSV_FROM_YMD=startDate&MLSVTOYMD={endDate}`;
+            // 나이스 공개 API: 서울시교육청 한영외고의 석식(3) 조회
+            const params = new URLSearchParams({
+                Type: 'json',
+                pIndex: '1',
+                pSize: '100',
+                ATPT_OFCDC_SC_CODE: CONFIG.NEIS_ATPT_CODE,
+                SD_SCHUL_CODE: CONFIG.NEIS_SD_CODE,
+                MMEAL_SC_CODE: '3',
+                MLSV_FROM_YMD: startDate,
+                MLSV_TO_YMD: endDate
+            });
+            const apiUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?${params.toString()}`;
 
            
             let loadedFromNeis = false;
@@ -528,7 +537,7 @@ const apiUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex
         const ymd = String(row.MLSV_YMD || '');
 
         const formattedDate =
-            `ymd.substring(0,4)-{ymd.substring(4, 6)}-${ymd.substring(6, 8)}`;
+            `${ymd.substring(0, 4)}-${ymd.substring(4, 6)}-${ymd.substring(6, 8)}`;
 
  
 
@@ -576,7 +585,7 @@ const apiUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex
             for (let d = 1; d <= daysInMonth; d++) {
                 const dayStr = String(d).padStart(2, '0');
                 const monthStr = String(month).padStart(2, '0');
-                const dateKey = `year-{monthStr}-${dayStr}`;
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
                 const dateObj = new Date(year, month - 1, d);
                 const dayOfWeek = dateObj.getDay();
 
@@ -667,7 +676,7 @@ function renderCalendar() {
 
         if (selectedWeekdays.has(dayOfWeek)) {
       const dateKey =
-    `currentYear-{String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
 
             const mealInfo = mealsData[dateKey];
@@ -703,7 +712,7 @@ function renderCalendar() {
     for (let day = 1; day <= daysInMonth; day++) {
         const monthStr = String(currentMonth).padStart(2, '0');
         const dayStr = String(day).padStart(2, '0');
-      const dateKey = `currentYear-{monthStr}-${dayStr}`;
+      const dateKey = `${currentYear}-${monthStr}-${dayStr}`;
 
         const dateObj = new Date(currentYear, currentMonth - 1, day);
         const dayOfWeek = dateObj.getDay();
