@@ -437,8 +437,7 @@
             STORAGE_KEY_CUSTOM_MENUS: 'hyfl_dinner_custom_menus_v1',
             STORAGE_KEY_CONFIG: 'hyfl_dinner_config_v1',
             NEIS_ATPT_CODE: 'B10', // 서울특별시교육청
-            NEIS_SD_CODE: '7010259', // 한영외국어고등학교 (기존 7010536은 다른 학교 코드)
-            NEIS_API_KEY: '', // 실제 인증키는 공개 프론트엔드 코드에 직접 입력하지 말 것
+            NEIS_SD_CODE: '7010259', // 한영외국어고등학교
         };
 
 
@@ -479,74 +478,46 @@
 
         // 2. 나이스(NEIS) API 연동 및 Fallback 데이터 메커니즘
         async function fetchNeisMealData(year, month) {
-            const formattedMonth = String(month).padStart(2, '0');
-            const lastDay = new Date(year, month, 0).getDate();
-            const startDate = `${year}${formattedMonth}01`;
-            const endDate = `${year}${formattedMonth}${String(lastDay).padStart(2, '0')}`;
-
-            // 이전 달 데이터나 임의 샘플 메뉴가 섞이지 않도록 먼저 비움
+            const statusTag = document.getElementById('data-status-tag');
             mealsData = {};
 
-            const statusTag = document.getElementById('data-status-tag');
-
-            // NEIS는 인증키가 없으면 샘플 응답(최대 5건)만 제공할 수 있음
-            // 실제 한 달 전체 메뉴를 받으려면 서버 측에서 인증키를 사용해야 함
-            if (!CONFIG.NEIS_API_KEY || CONFIG.NEIS_API_KEY.trim() === '') {
-                statusTag.textContent = 'NEIS 인증키 설정 필요';
-                statusTag.className = 'text-amber-300';
-                renderCalendar();
-                document.getElementById('last-updated-time').textContent = '실제 급식 데이터 미수신';
-                return;
-            }
-
-            const params = new URLSearchParams({
-                KEY: CONFIG.NEIS_API_KEY,
-                Type: 'json',
-                pIndex: '1',
-                pSize: '100',
-                ATPT_OFCDC_SC_CODE: CONFIG.NEIS_ATPT_CODE,
-                SD_SCHUL_CODE: CONFIG.NEIS_SD_CODE,
-                MMEAL_SC_CODE: '3',
-                MLSV_FROM_YMD: startDate,
-                MLSV_TO_YMD: endDate
-            });
-
             try {
-                const response = await fetch(
-                    `https://open.neis.go.kr/hub/mealServiceDietInfo?${params.toString()}`
-                );
+                const response = await fetch(`./meals.json?updated=${Date.now()}`, {
+                    cache: 'no-store'
+                });
                 if (!response.ok) {
-                    throw new Error(`NEIS HTTP 오류: ${response.status}`);
+                    throw new Error(`급식 데이터 파일 요청 실패: HTTP ${response.status}`);
                 }
 
                 const data = await response.json();
-                const rows = data.mealServiceDietInfo?.[1]?.row;
-
-                if (Array.isArray(rows) && rows.length > 0) {
-                    parseNeisResponse(rows);
-                    statusTag.textContent = '한영외고 실제 NEIS 데이터 수신';
-                    statusTag.className = 'text-emerald-300';
-                } else {
-                    const apiMessage = data.RESULT?.MESSAGE ||
-                        data.mealServiceDietInfo?.[0]?.head?.[1]?.RESULT?.MESSAGE ||
-                        '해당 기간에 등록된 석식 정보가 없습니다.';
-                    statusTag.textContent = '실제 급식 데이터 없음';
-                    statusTag.className = 'text-amber-300';
-                    console.warn('NEIS 응답에 급식 행이 없습니다:', apiMessage, data);
+                if (!Array.isArray(data.rows)) {
+                    throw new Error('급식 데이터 형식이 올바르지 않습니다.');
                 }
+
+                parseNeisResponse(data.rows);
+                statusTag.textContent = data.rows.length > 0
+                    ? '한영외고 실제 NEIS 데이터'
+                    : '해당 기간 급식 정보 없음';
+                statusTag.className = data.rows.length > 0
+                    ? 'text-emerald-300'
+                    : 'text-amber-300';
+
+                applyCustomMenuOverrides();
+                renderCalendar();
+                document.getElementById('last-updated-time').textContent =
+                    data.updatedAt
+                        ? `NEIS 갱신: ${new Date(data.updatedAt).toLocaleString('ko-KR')}`
+                        : 'NEIS 데이터 갱신 시간 정보 없음';
             } catch (err) {
-                statusTag.textContent = 'NEIS 데이터 연결 실패';
+                statusTag.textContent = '급식 데이터 연결 실패';
                 statusTag.className = 'text-rose-300';
                 console.error('NEIS 급식 데이터 요청 실패:', err);
+                applyCustomMenuOverrides();
+                renderCalendar();
+                document.getElementById('last-updated-time').textContent =
+                    '급식 데이터 파일을 확인할 수 없습니다.';
             }
-
-            // 관리자가 등록한 메뉴만 실제 NEIS 데이터 위에 덮어씀
-            applyCustomMenuOverrides();
-            renderCalendar();
-            document.getElementById('last-updated-time').textContent =
-                new Date().toLocaleString('ko-KR');
         }
-
 
         // 나이스 응답 파싱
  function parseNeisResponse(rows) {
