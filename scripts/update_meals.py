@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 API_URL = "https://open.neis.go.kr/hub/mealServiceDietInfo"
 ATPT_OFCDC_SC_CODE = "B10"
-# This is the school code currently configured in index.html.
+# Keep this aligned with the school code configured in index.html.
 SD_SCHUL_CODE = "7010259"
 MEAL_CODE = "3"  # Dinner
 
@@ -50,20 +50,29 @@ def fetch_rows(api_key, start_date, end_date):
     with urlopen(request, timeout=30) as response:
         payload = json.loads(response.read().decode("utf-8"))
 
-    result = payload.get("RESULT")
-    if result:
-        code = result.get("CODE", "")
+    blocks = payload.get("mealServiceDietInfo", [])
+    api_result = payload.get("RESULT")
+
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        if "head" in block:
+            for item in block["head"] or []:
+                if isinstance(item, dict) and "RESULT" in item:
+                    api_result = item["RESULT"]
+        if "row" in block:
+            return block["row"] or []
+
+    if api_result:
+        code = api_result.get("CODE", "")
         if code == "INFO-200":
             return []
         if code != "INFO-000":
             raise RuntimeError(
-                f"NEIS API returned {code}: {result.get('MESSAGE', 'unknown error')}"
+                f"NEIS API returned {code}: "
+                f"{api_result.get('MESSAGE', 'unknown error')}"
             )
 
-    blocks = payload.get("mealServiceDietInfo", [])
-    for block in blocks:
-        if isinstance(block, dict) and "row" in block:
-            return block["row"] or []
     return []
 
 
@@ -84,12 +93,11 @@ def main():
         "period": {"from": start_date, "to": end_date},
         "rows": rows,
     }
-    target = Path("meals.json")
-    target.write_text(
+    Path("meals.json").write_text(
         json.dumps(output, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(f"Saved {len(rows)} dinner records to {target} ({start_date}–{end_date}).")
+    print(f"Saved {len(rows)} dinner records to meals.json ({start_date}–{end_date}).")
 
 
 if __name__ == "__main__":
