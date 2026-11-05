@@ -984,8 +984,16 @@ function renderCalendar() {
 
 
             submissions.forEach(sub => {
-                const datesStr = `"${sub.dates.join('; ')}"`;
-                csvContent += `sub.studentId,{sub.name},sub.totalDays,{datesStr},${sub.createdAt}\n`;
+                const datesStr = sub.dates.map(date => {
+                    const [year, month, day] = date.split('-').map(Number);
+                    const weekday = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'][new Date(year, month - 1, day).getDay()];
+                    return `${year}년 ${month}월 ${day}일 ${weekday}`;
+                }).join('; ');
+
+                const row = [sub.studentId, sub.name, sub.totalDays, datesStr, sub.createdAt]
+                    .map(value => `"${String(value ?? '').replace(/"/g, '""')}"`)
+                    .join(',');
+                csvContent += row + '\n';
             });
 
 
