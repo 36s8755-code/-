@@ -166,10 +166,10 @@
 
 
             <!-- 컨트롤 바: 년월 이동 + 요일 일괄 선택 -->
-            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
-               
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col items-center gap-4">
+
                 <!-- 년월 이동 -->
-                <div class="flex items-center space-x-3 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex flex-wrap items-center justify-center gap-3 w-full">
                     <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
@@ -182,20 +182,21 @@
                     <button onclick="resetToCurrentMonth()" class="text-xs text-hyfl-blue bg-hyfl-lightblue hover:bg-blue-100 px-2.5 py-1.5 rounded-md font-medium transition">
                         이번달
                     </button>
-               <div class="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-center">
-    <span class="text-xs font-semibold text-slate-500 mr-1">
-        <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
-        요일별 선택:
-    </span>
-    <button data-weekday="1" onclick="toggleWeekdaySelection(1)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">월요일</button>
-    <button data-weekday="2" onclick="toggleWeekdaySelection(2)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">화요일</button>
-    <button data-weekday="3" onclick="toggleWeekdaySelection(3)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">수요일</button>
-    <button data-weekday="4" onclick="toggleWeekdaySelection(4)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">목요일</button>
-    <button data-weekday="5" onclick="toggleWeekdaySelection(5)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">금요일</button>
-    <button onclick="clearAllSelections()" class="px-3 py-1.5 bg-rose-50 text-rose-600 text-xs rounded-md font-medium border border-rose-200 transition">전체 해제</button>
-</div>
+                </div>
 
-
+                <!-- 요일별 신청 버튼 -->
+                <div class="flex flex-wrap items-center justify-center gap-1.5 w-full">
+                    <span class="text-xs font-semibold text-slate-500 mr-1">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
+                        요일별 선택:
+                    </span>
+                    <button data-weekday="1" onclick="toggleWeekdaySelection(1)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">월요일</button>
+                    <button data-weekday="2" onclick="toggleWeekdaySelection(2)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">화요일</button>
+                    <button data-weekday="3" onclick="toggleWeekdaySelection(3)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">수요일</button>
+                    <button data-weekday="4" onclick="toggleWeekdaySelection(4)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">목요일</button>
+                    <button data-weekday="5" onclick="toggleWeekdaySelection(5)" class="weekday-btn px-3 py-1.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200 transition">금요일</button>
+                    <button onclick="clearAllSelections()" class="px-3 py-1.5 bg-rose-50 text-rose-600 text-xs rounded-md font-medium border border-rose-200 transition">전체 해제</button>
+                </div>
             </div>
 
 
