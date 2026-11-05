@@ -1,0 +1,39 @@
+name: Update NEIS dinner menus
+
+on:
+  schedule:
+    # 06:00 Korea Standard Time (21:00 UTC on the previous day)
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-meals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch dinner menus from NEIS
+        env:
+          NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
+        run: python scripts/update_meals.py
+
+      - name: Commit updated menu data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add meals.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update NEIS dinner menus"
+            git push
+          else
+            echo "No menu data changes."
+          fi
