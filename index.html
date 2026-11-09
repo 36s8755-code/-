@@ -437,6 +437,7 @@
             STORAGE_KEY_SUBMISSIONS: 'hyfl_dinner_submissions_v1',
             STORAGE_KEY_CUSTOM_MENUS: 'hyfl_dinner_custom_menus_v1',
             STORAGE_KEY_CONFIG: 'hyfl_dinner_config_v1',
+            APPS_SCRIPT_URL: 'https://script.google.com/a/macros/hyfl.hs.kr/s/AKfycbwYvWbA-KPHwoeTSzbcI7cGxG34dEKubMnrRpa2CRTrMPLwE0ELYD0eslhj-qsthvDk/exec',
             NEIS_ATPT_CODE: 'B10', // 서울특별시교육청
             NEIS_SD_CODE: '7010259', // 한영외국어고등학교
         };
@@ -814,39 +815,56 @@ function renderCalendar() {
 
 
         // 석식 신청 제출
-        function submitDinnerRegistration() {
+        async function submitDinnerRegistration() {
             if (selectedDates.size === 0) {
                 showToast('신청할 석식 날짜를 최소 1일 이상 선택해주세요.', 'error');
                 return;
             }
 
+            if (!currentUser.studentId || !currentUser.name) {
+                showToast('먼저 학번과 이름을 입력해주세요.', 'error');
+                return;
+            }
 
             const sortedDates = Array.from(selectedDates).sort();
 
+            try {
+                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        studentId: currentUser.studentId,
+                        name: currentUser.name,
+                        dates: sortedDates
+                    })
+                });
 
-            const newSubmission = {
-                id: Date.now(),
-                studentId: currentUser.studentId,
-                name: currentUser.name,
-                dates: sortedDates,
-                totalDays: sortedDates.length,
-                createdAt: new Date().toLocaleString()
-            };
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || '신청 저장에 실패했습니다.');
+                }
 
+                const newSubmission = {
+                    id: Date.now(),
+                    studentId: currentUser.studentId,
+                    name: currentUser.name,
+                    dates: sortedDates,
+                    totalDays: sortedDates.length,
+                    createdAt: new Date().toLocaleString()
+                };
 
-            // 기존 동일 학번 제출 내역 덮어쓰기/갱신
-            const existingIndex = submissions.findIndex(s => s.studentId === currentUser.studentId);
-            if (existingIndex >= 0) {
-                submissions[existingIndex] = newSubmission;
-            } else {
-                submissions.push(newSubmission);
+                const existingIndex = submissions.findIndex(s => s.studentId === currentUser.studentId);
+                if (existingIndex >= 0) {
+                    submissions[existingIndex] = newSubmission;
+                } else {
+                    submissions.push(newSubmission);
+                }
+                localStorage.setItem(CONFIG.STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
+
+                showToast(`[신청 완료] ${currentUser.name}님의 석식 신청 ${sortedDates.length}건이 성공적으로 접수되었습니다.`, 'success');
+            } catch (error) {
+                console.error('석식 신청 저장 오류:', error);
+                showToast('중앙 서버에 신청을 저장하지 못했습니다. 학교 계정 로그인 및 Apps Script 배포 설정을 확인해주세요.', 'error');
             }
-
-
-            localStorage.setItem(CONFIG.STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
-
-
-            showToast(`[신청 완료] ${currentUser.name}님의 석식 신청 ${sortedDates.length}건이 성공적으로 접수되었습니다.`, 'success');
         }
 
 
@@ -878,7 +896,7 @@ function renderCalendar() {
 
         function openAdminDashboard() {
             document.getElementById('admin-dashboard-modal').classList.remove('hidden');
-            renderAdminSubmissions();
+            loadCentralSubmissions();
         }
 
 
@@ -902,9 +920,41 @@ function renderCalendar() {
             activeBtn.classList.add('border-hyfl-blue', 'text-hyfl-blue');
 
 
-            if (tabId === 'tab-submissions') renderAdminSubmissions();
+            if (tabId === 'tab-submissions') loadCentralSubmissions();
         }
 
+
+        // 중앙 스프레드시트에서 모든 기기의 신청 내역 불러오기
+        async function loadCentralSubmissions(filterKeyword = '') {
+            try {
+                const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?t=' + Date.now(), {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success || !Array.isArray(result.submissions)) {
+                    throw new Error(result.message || '신청 내역을 불러오지 못했습니다.');
+                }
+
+                submissions = result.submissions.map(sub => ({
+                    ...sub,
+                    id: sub.id,
+                    studentId: String(sub.studentId || ''),
+                    name: String(sub.name || ''),
+                    dates: Array.isArray(sub.dates) ? sub.dates : [],
+                    totalDays: Number(sub.totalDays || (Array.isArray(sub.dates) ? sub.dates.length : 0)),
+                    createdAt: sub.createdAt || ''
+                }));
+
+                localStorage.setItem(CONFIG.STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
+                renderAdminSubmissions(filterKeyword);
+            } catch (error) {
+                console.error('중앙 신청 내역 불러오기 오류:', error);
+                showToast('중앙 신청 내역을 불러오지 못했습니다. 학교 계정 로그인 및 Apps Script 배포 설정을 확인해주세요.', 'error');
+                renderAdminSubmissions(filterKeyword);
+            }
+        }
 
         // 관리자 탭 1: 학생 신청 목록 출력
         function renderAdminSubmissions(filterKeyword = '') {
