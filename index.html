@@ -258,9 +258,9 @@
                 <button onclick="clearAllSelections()" class="px-4 py-2.5 text-xs text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition">
                     초기화
                 </button>
-                <button onclick="submitDinnerRegistration()" class="flex-1 sm:flex-none bg-hyfl-blue hover:bg-hyfl-navy text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center justify-center gap-2">
+                <button onclick="openGoogleForm()" class="flex-1 sm:flex-none bg-hyfl-blue hover:bg-hyfl-navy text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-paper-plane"></i>
-                    <span>석식 신청 완료</span>
+                    <span>구글폼으로 신청하기</span>
                 </button>
             </div>
         </div>
@@ -850,6 +850,42 @@ function renderCalendar() {
         }
 
 
+
+
+    <!-- Google Form 신청 모달 -->
+    <div id="google-form-modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[92vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-200">
+                <div>
+                    <h3 class="font-bold text-hyfl-navy">한영외고 석식 신청</h3>
+                    <p class="text-xs text-slate-500 mt-1">학교 계정으로 로그인한 뒤 신청서를 제출해주세요.</p>
+                </div>
+                <button type="button" onclick="closeGoogleForm()" class="text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg" aria-label="신청서 닫기">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <iframe
+                src="https://docs.google.com/forms/d/e/1FAIpQLSfneoIaJWxHyhTIsq1pQ97sWpzrNPy1X0d50080mW3w5WRz9Q/viewform?embedded=true"
+                title="한영외고 석식 신청 Google Form"
+                class="w-full flex-1 border-0"
+                frameborder="0"
+                marginheight="0"
+                marginwidth="0"
+                loading="lazy">
+                로드 중…
+            </iframe>
+        </div>
+    </div>
+
+
+        // Google Form 신청서 열기/닫기
+        function openGoogleForm() {
+            document.getElementById('google-form-modal').classList.remove('hidden');
+        }
+
+        function closeGoogleForm() {
+            document.getElementById('google-form-modal').classList.add('hidden');
+        }
 
 
         // 6. 영양사 관리자 모듈
