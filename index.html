@@ -362,9 +362,9 @@
                             <button onclick="clearAllSubmissions()" class="px-3 py-2 text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg font-semibold border border-rose-200 transition">
                                 <i class="fa-solid fa-trash-can mr-1"></i> 전체 데이터 초기화
                             </button>
-                            <button onclick="exportToCSV()" class="flex-1 sm:flex-none px-4 py-2 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-bold shadow transition flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-file-excel"></i>
-                                <span>엑셀(CSV) 다운로드</span>
+                            <button onclick="openGoogleResponseSheet()" class="flex-1 sm:flex-none px-4 py-2 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-bold shadow transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-table"></i>
+                                <span>구글폼 응답 스프레드시트 열기</span>
                             </button>
                         </div>
                     </div>
@@ -1008,6 +1008,12 @@ function renderCalendar() {
 
     showToast('모든 요일 선택이 해제되었습니다.', 'info');
 }
+
+
+        // 구글폼 응답 스프레드시트 열기
+        function openGoogleResponseSheet() {
+            window.open('https://docs.google.com/spreadsheets/d/1WIAa2PXBTL_TORXyRgCpbfIlmwx8aXl1a1-hPXOslHo/edit?gid=1777331148#gid=1777331148', '_blank', 'noopener');
+        }
 
 
         // 엑셀(CSV) 다운로드 기능 (UTF-8 BOM 적용하여 엑셀에서 한글 깨짐 방지)
