@@ -437,6 +437,15 @@
                         <button onclick="saveAdminConfig()" class="w-full py-2.5 bg-hyfl-blue hover:bg-hyfl-navy text-white text-xs font-bold rounded-lg shadow transition">
                             설정 내용 업데이트
                         </button>
+                        <div class="border-t border-slate-200 pt-4 space-y-2">
+                            <h3 class="text-sm font-bold text-hyfl-navy">이번 달 Google Form 주소 변경</h3>
+                            <label for="admin-google-form-url" class="block text-xs font-semibold text-slate-700">새 구글폼 주소</label>
+                            <input type="url" id="admin-google-form-url" placeholder="https://docs.google.com/forms/d/e/.../viewform" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                            <p class="text-[11px] leading-relaxed text-slate-500">주소를 입력한 뒤 설정 파일을 다운로드하세요. 다운로드한 form-config.json 파일을 GitHub 저장소의 기존 파일과 교체해 커밋하면 모든 학생에게 새 주소가 적용됩니다. 새 폼의 학번·이름·요일 항목 ID가 기존 폼과 다르면 자동 입력 항목도 별도로 수정해야 합니다.</p>
+                            <button onclick="downloadSharedFormConfig()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow transition">
+                                공용 폼 설정 파일 다운로드
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -485,8 +494,9 @@
 
 
         // 초기화 실행
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             loadLocalStorages();
+            await loadSharedFormConfig();
             fetchNeisMealData(currentYear, currentMonth);
             updateNoticeText();
             updateGoogleFormButtonState();
@@ -503,6 +513,39 @@
             if (savedCfg) systemConfig = JSON.parse(savedCfg);
         }
 
+
+        // GitHub에 공개된 공용 설정 파일에서 이번 달 구글폼 주소를 불러옴
+        const DEFAULT_FORM_CONFIG = {
+            formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSfneoIaJWxHyhTIsq1pQ97sWpzrNPy1X0d50080mW3w5WRz9Q/viewform',
+            entryStudentId: 'entry.599398478',
+            entryName: 'entry.1282507875',
+            entryWeekday: 'entry.1093798557'
+        };
+        let sharedFormConfig = { ...DEFAULT_FORM_CONFIG };
+
+        async function loadSharedFormConfig() {
+            try {
+                const response = await fetch(`./form-config.json?updated=${Date.now()}`, {
+                    cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('공용 폼 설정 파일을 불러오지 못했습니다.');
+                const data = await response.json();
+                const parsedUrl = new URL(data.formUrl);
+                if (parsedUrl.hostname !== 'docs.google.com' ||
+                    !parsedUrl.pathname.includes('/forms/')) {
+                    throw new Error('구글폼 주소 형식이 올바르지 않습니다.');
+                }
+                sharedFormConfig = {
+                    formUrl: data.formUrl,
+                    entryStudentId: data.entryStudentId || DEFAULT_FORM_CONFIG.entryStudentId,
+                    entryName: data.entryName || DEFAULT_FORM_CONFIG.entryName,
+                    entryWeekday: data.entryWeekday || DEFAULT_FORM_CONFIG.entryWeekday
+                };
+            } catch (error) {
+                console.warn('공용 구글폼 설정을 불러오지 못해 기본 주소를 사용합니다.', error);
+                sharedFormConfig = { ...DEFAULT_FORM_CONFIG };
+            }
+        }
 
         // 2. 나이스(NEIS) API 연동 및 Fallback 데이터 메커니즘
         async function fetchNeisMealData(year, month) {
@@ -940,19 +983,17 @@ function renderCalendar() {
                 return;
             }
 
-            const formUrl = new URL(
-                'https://docs.google.com/forms/d/e/1FAIpQLSfneoIaJWxHyhTIsq1pQ97sWpzrNPy1X0d50080mW3w5WRz9Q/viewform'
-            );
+            const formUrl = new URL(sharedFormConfig.formUrl);
             formUrl.searchParams.set('usp', 'pp_url');
             formUrl.searchParams.set('embedded', 'true');
-            formUrl.searchParams.set('entry.599398478', currentUser.studentId);
-            formUrl.searchParams.set('entry.1282507875', currentUser.name);
+            formUrl.searchParams.set(sharedFormConfig.entryStudentId, currentUser.studentId);
+            formUrl.searchParams.set(sharedFormConfig.entryName, currentUser.name);
 
             const weekdayNames = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
             [...selectedWeekdays]
                 .sort((a, b) => a - b)
                 .forEach(day => {
-                    formUrl.searchParams.append('entry.1093798557', weekdayNames[day]);
+                    formUrl.searchParams.append(sharedFormConfig.entryWeekday, weekdayNames[day]);
                 });
 
             document.getElementById('google-form-iframe').src = formUrl.toString();
@@ -990,6 +1031,8 @@ function renderCalendar() {
 
         function openAdminDashboard() {
             document.getElementById('admin-dashboard-modal').classList.remove('hidden');
+            const formUrlInput = document.getElementById('admin-google-form-url');
+            if (formUrlInput) formUrlInput.value = sharedFormConfig.formUrl;
             renderAdminSubmissions();
         }
 
@@ -1174,6 +1217,46 @@ function renderCalendar() {
 
             renderCalendar();
             showToast(`${dateVal} 메뉴 정보가 성공적으로 업데이트되었습니다.`, 'success');
+        }
+
+
+        // 이번 달 구글폼 주소를 공용 설정 파일로 다운로드
+        function downloadSharedFormConfig() {
+            const input = document.getElementById('admin-google-form-url');
+            const enteredUrl = input ? input.value.trim() : '';
+
+            if (!enteredUrl) {
+                showToast('새 구글폼 주소를 입력해주세요.', 'error');
+                return;
+            }
+
+            let parsedUrl;
+            try {
+                parsedUrl = new URL(enteredUrl);
+            } catch (error) {
+                showToast('올바른 구글폼 주소를 입력해주세요.', 'error');
+                return;
+            }
+
+            if (parsedUrl.hostname !== 'docs.google.com' ||
+                !parsedUrl.pathname.includes('/forms/')) {
+                showToast('Google Forms 주소만 입력할 수 있습니다.', 'error');
+                return;
+            }
+
+            sharedFormConfig.formUrl = enteredUrl;
+            const configText = JSON.stringify(sharedFormConfig, null, 2);
+            const blob = new Blob([configText], { type: 'application/json;charset=utf-8' });
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = 'form-config.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl);
+
+            showToast('설정 파일을 다운로드했습니다. GitHub에 업로드하면 전체 학생에게 적용됩니다.', 'success');
         }
 
 
