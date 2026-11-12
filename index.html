@@ -273,14 +273,15 @@
             <div class="flex items-center justify-between gap-3 p-4 border-b border-slate-200">
                 <div>
                     <h3 class="font-bold text-hyfl-navy">한영외고 석식 신청</h3>
-                    <p class="text-xs text-slate-500 mt-1">학교 계정으로 로그인한 뒤 신청서를 제출해주세요.</p>
+                    <p class="text-xs text-slate-500 mt-1">학번, 이름, 선택한 요일이 자동 입력됩니다. 내용을 확인한 뒤 구글폼에서 제출해주세요.</p>
                 </div>
                 <button type="button" onclick="closeGoogleForm()" class="text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg" aria-label="신청서 닫기">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <iframe
-                src="https://docs.google.com/forms/d/e/1FAIpQLSfneoIaJWxHyhTIsq1pQ97sWpzrNPy1X0d50080mW3w5WRz9Q/viewform?embedded=true"
+                id="google-form-iframe"
+                src="about:blank"
                 title="한영외고 석식 신청 Google Form"
                 class="w-full flex-1 border-0"
                 frameborder="0"
@@ -882,6 +883,32 @@ function renderCalendar() {
 
         // Google Form 신청서 열기/닫기
         function openGoogleForm() {
+            if (!currentUser.studentId || !currentUser.name) {
+                showToast('먼저 학번과 이름을 입력해주세요.', 'error');
+                return;
+            }
+
+            if (selectedWeekdays.size === 0) {
+                showToast('신청할 요일을 먼저 선택해주세요.', 'error');
+                return;
+            }
+
+            const formUrl = new URL(
+                'https://docs.google.com/forms/d/e/1FAIpQLSfneoIaJWxHyhTIsq1pQ97sWpzrNPy1X0d50080mW3w5WRz9Q/viewform'
+            );
+            formUrl.searchParams.set('usp', 'pp_url');
+            formUrl.searchParams.set('embedded', 'true');
+            formUrl.searchParams.set('entry.599398478', currentUser.studentId);
+            formUrl.searchParams.set('entry.1282507875', currentUser.name);
+
+            const weekdayNames = { 1: '월', 2: '화', 3: '수', 4: '목', 5: '금' };
+            [...selectedWeekdays]
+                .sort((a, b) => a - b)
+                .forEach(day => {
+                    formUrl.searchParams.append('entry.1093798557', weekdayNames[day]);
+                });
+
+            document.getElementById('google-form-iframe').src = formUrl.toString();
             document.getElementById('google-form-modal').classList.remove('hidden');
         }
 
